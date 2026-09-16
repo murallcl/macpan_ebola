@@ -1,7 +1,5 @@
-## This is macpan_ebola …
+## This is macpan_ebola (Mike Li)
 
-## This section is for Dushoff-style vim-setup and vim targeting
-## You can delete it if you don't want it
 current: target
 -include target.mk
 Ignore = target.mk
@@ -18,19 +16,175 @@ Sources += Makefile README.md $(wildcard *.R)
 Ignore += makestuff
 msrepo = https://github.com/dushoff
 
-seird_params.Rout: seird_params.R
+######################################################################
+
+alldirs += ebola_2026
+ebola_2026/%: | ebola_2026 ;
+Ignore  += $(alldirs)
+
+ebola_2026: 
+	ln ../$@ || git clone https://github.com/wzmli/ebola_2026
+
+######################################################################
+
+update: | ebola_2026
+	cd ebola_2026 && $(MAKE) pull
+
+read.Rout: ebola_2026/read.R ebola_2026/drc_sitrep.csv
 	$(pipeR)
 
-seird_flows.Rout: seird_flows.R seird_params.rda
+clean.Rout: clean.R read.rds
 	$(pipeR)
 
-seird_spec.Rout: seird_spec.R seird_params.rda seird_flows.rda
+cfr.Rout: cfr.R clean.rds
 	$(pipeR)
 
-seird_sims.Rout: sims.R seird_spec.rds seird_params.rda
+correction.Rout: correction.R clean.rds
 	$(pipeR)
 
-## ln -s ../makestuff . ## Do this first if you want a linked makestuff
+doubling.Rout: doubling.R correction.rds
+	$(pipeR)
+
+SEIRD_flows.Rout: SEIRD_flows.R 
+	$(pipeR)
+
+impmakeR += spec
+# SEIRD.spec.Rout: spec.R
+%.spec.Rout: spec.R SEIRD_flows.rda
+	$(pipeR)
+
+SEIRD_prop_spec.Rout: SEIRD_prop_spec.R SEIRD.spec.rds SEIRD_flows.rda
+	$(pipeR)
+
+## convolution (Currently not using)
+convo_spec.Rout: convo_spec.R spec.rds flows.rda
+	$(pipeR)
+
+SEIRD_sims.Rout: SEIRD_sims.R SEIRD_prop_spec.rds SEIRD_flows.rda
+	$(pipeR)
+
+## prop_simplots.Rout: sims.R flows.R
+SEIRD_simplots.Rout: SEIRD_simplots.R SEIRD_sims.rds clean.rds 
+	$(pipeR)
+
+## ebola1.jpg ebola2.jpg
+
+
+######################################################################
+
+SEIRDB_flows.Rout: SEIRDB_flows.R 
+	$(pipeR)
+
+SEIRDB.spec.Rout: spec.R SEIRDB_flows.rda
+	$(pipeR)
+
+SEIRDB_prop_spec.Rout: SEIRDB_prop_spec.R SEIRDB.spec.rds SEIRDB_flows.rda
+	$(pipeR)
+
+SEIRDB_sims.Rout: SEIRDB_sims.R SEIRDB_prop_spec.rds SEIRDB_flows.rda
+	$(pipeR)
+
+SEIRDB_simplots.Rout: SEIRDB_simplots.R SEIRDB_sims.rds clean.rds
+	$(pipeR)
+
+complex_detsimplots.Rout: complex_detsimplots.R complex_detsims.rds clean.rds
+	$(pipeR)
+
+base_priors.Rout: SEIRDB_priors.R
+	$(pipeR)
+
+base2_priors.Rout: SEIRDB_priors2.R
+	$(pipeR)
+
+ll_priors.Rout: ll_priors.R
+	$(pipeR)
+
+lh_priors.Rout: lh_priors.R
+	$(pipeR)
+
+hl_priors.Rout: hl_priors.R
+	$(pipeR)
+
+hh_priors.Rout: hh_priors.R
+	$(pipeR)
+
+low_priors.Rout: low_priors.R
+	$(pipeR)
+
+high_priors.Rout: high_priors.R
+	$(pipeR)
+
+impmakeR += SEIRDB_calibrate
+# base_SEIRDB_calibrate.Rout: SEIRDB_calibrate.R SEIRDB_priors.R
+# base2_SEIRDB_calibrate.Rout: SEIRDB_calibrate.R SEIRDB_priors.R
+# high_SEIRDB_calibrate.Rout: SEIRDB_calibrate.R high_priors.R
+# low_SEIRDB_calibrate.Rout: SEIRDB_calibrate.R low_priors.R
+# ll_SEIRDB_calibrate.Rout: SEIRDB_calibrate.R
+# lh_SEIRDB_calibrate.Rout:
+# hl_SEIRDB_calibrate.Rout:
+# hh_SEIRDB_calibrate.Rout:
+#%_SEIRDB_calibrate.Rout: SEIRDB_calibrate.R SEIRDB_prop_spec.rds SEIRDB_flows.rda correction.rds %_priors.rda
+#	$(pipeR)
+%_SEIRDB_calibrate.Rout: SEIRDB_calibrate.R SEIRDB_prop_spec.rds SEIRDB_flows.rda clean.rds %_priors.rda
+	$(pipeR)
+
+impmakeR += SEIRDB_timevar_calibrate
+# base_SEIRDB_timevar_calibrate.Rout: SEIRDB_timevar_calibrate.R SEIRDB_priors.R
+%_SEIRDB_timevar_calibrate.Rout: SEIRDB_timevar_calibrate.R SEIRDB_prop_spec.rds SEIRDB_flows.rda clean.rds %_priors.rda
+	$(pipeR)
+
+impmakeR += pps
+# base_SEIRDB_pps.Rout: SEIRDB_pps.R
+# base2_SEIRDB_pps.Rout: SEIRDB_pps.R
+# ll_SEIRDB_pps.Rout: 
+# lh_SEIRDB_pps.Rout:
+# hl_SEIRDB_pps.Rout:
+# hh_SEIRDB_pps.Rout:
+%_SEIRDB_pps.Rout: SEIRDB_pps.R %_SEIRDB_calibrate.rds
+	$(pipeR)
+
+impmakeR += pps_sims
+# base2_SEIRDB_pps_sims.Rout: SEIRDB_pps_sims.R
+# ll_SEIRDB_pps_sims.Rout: SEIRDB_pps_sims.R
+# lh_SEIRDB_pps_sims.Rout:
+# hl_SEIRDB_pps_sims.Rout:
+# hh_SEIRDB_pps_sims.Rout:
+%_SEIRDB_pps_sims.Rout: SEIRDB_pps_sims.R %_SEIRDB_pps.rda
+	$(pipeR)
+
+impmakeR += pps_plots
+# base_SEIRDB_pps_plots.Rout: SEIRDB_pps_plots.R SEIRDB_priors.R
+# high_SEIRDB_pps_plots.Rout: SEIRDB_pps_plots.R high_priors.R
+# low_SEIRDB_pps_plots.Rout: SEIRDB_pps_plots.R low_priors.R
+# ll_SEIRDB_pps_plots.Rout: pps_plots.R
+# lh_SEIRDB_pps_plots.Rout:
+# hl_SEIRDB_pps_plots.Rout:
+# hh_SEIRDB_pps_plots.Rout:
+%_SEIRDB_pps_plots.Rout: SEIRDB_pps_plots.R %_SEIRDB_pps_sims.rds correction.rds
+	$(pipeR)
+
+# base_SEIRDB_pps_plots.old.Rout: SEIRDB_pps_plots.R SEIRDB_priors.R
+# base2_SEIRDB_pps_plots.old.Rout: SEIRDB_pps_plots.R SEIRDB_priors.R
+%_SEIRDB_pps_plots.old.Rout: SEIRDB_pps_plots.R %_SEIRDB_pps_sims.rds clean.rds
+	$(pipeR)
+#%_SEIRDB_pps_plots.old.Rout: SEIRDB_pps_plots.R %_SEIRDB_pps_sims.rds correction.rds
+#	$(pipeR)
+
+combo_reporting_pps.Rout: combo_reporting_pps.R low_SEIRDB_pps_plots.rds high_SEIRDB_pps_plots.rds clean.rds
+	$(pipeR)
+
+combo_pps.Rout: combo_pps.R ll_SEIRDB_pps_sims.rds lh_SEIRDB_pps_sims.rds hl_SEIRDB_pps_sims.rds hh_SEIRDB_pps_sims.rds
+	$(pipeR)
+
+compare.Rout: compare.R combo_pps.rds compare.csv
+	$(pipeR)
+
+######################################################################
+
+simple.Rout: simple.R
+	$(pipeR)
+
+
 Makefile: makestuff/00.stamp
 makestuff/%.stamp: | makestuff
 	- $(RM) makestuff/*.stamp
